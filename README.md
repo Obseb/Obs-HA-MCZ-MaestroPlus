@@ -6,7 +6,7 @@ Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](htt
 
 ![Les états du poêle : chauffe, allumage, arrêt](images/stove-states.png)
 
-*Illustration du poêle dans la carte : chauffe, allumage, arrêt.*
+*Illustration du poêle (inspirée du MCZ Mood) : chauffe, allumage, arrêt.*
 
 ## Ce que montre la carte
 
@@ -16,8 +16,8 @@ De haut en bas :
 2. **3 cases alignées** :
    - **Préréglage** : `manual`, `auto`, `overnight`, `comfort`, `turbo` (selon le modèle). Un appui ouvre la liste.
    - **Ventilo 1** et **Ventilo 2** : niveau actuel (ex. `3/5`) ou mode (Auto…). Un appui ouvre les niveaux, les modes et « Arrêt ». L'icône tourne d'autant plus vite que le niveau est élevé.
-3. **Grande illustration de poêle** (style icônes Home Assistant, type MCZ Mood) animée selon l'état :
-   flamme vive en chauffe, flamme réduite pendant l'allumage, braises en veille, air chaud qui monte quand un ventilateur tourne.
+3. **Grande illustration de poêle** (style icônes Home Assistant, inspirée du MCZ Mood) animée selon l'état :
+   grande flamme fine en chauffe, petite flamme pendant l'allumage, braises en veille, vitre vide à l'arrêt, air chaud qui monte quand un ventilateur tourne.
 4. **Température actuelle** (grande, colorée selon l'état) et **consigne** avec les chevrons ▲ / ▼ (envoi différé de 0,9 s, comme la carte Bosch).
 
 ### Fonctions ajoutées (autour du poêle)

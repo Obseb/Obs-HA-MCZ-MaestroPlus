@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.1.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -137,60 +137,47 @@ const isBad = (s) => !s || s.state === "unavailable" || s.state === "unknown";
 
 // --- Illustration : poêle à pellets type MCZ Mood (style icônes MDI) ------
 const STOVE_SVG = `
-<svg class="stove" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<svg class="stove" viewBox="0 0 200 340" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs>
     <radialGradient id="obsGlow" cx="50%" cy="50%" r="50%">
       <stop offset="0" style="stop-color:var(--htc-accent)" stop-opacity=".85"/>
       <stop offset="1" style="stop-color:var(--htc-accent)" stop-opacity="0"/>
     </radialGradient>
-    <clipPath id="obsGlassClip"><rect x="90" y="94" width="120" height="138" rx="12"/></clipPath>
+    <clipPath id="obsGlassClip"><rect x="68" y="120" width="64" height="118" rx="6"/></clipPath>
   </defs>
 
   <!-- air chaud (animé quand le poêle souffle) -->
-  <path class="wave w1" d="M96 34c-7-6 7-12 0-19"/>
-  <path class="wave w2" d="M118 34c-7-6 7-12 0-19"/>
-  <path class="wave w3" d="M140 34c-7-6 7-12 0-19"/>
+  <path class="wave w1" d="M78 30c-6-5 6-10 0-16"/>
+  <path class="wave w2" d="M100 30c-6-5 6-10 0-16"/>
+  <path class="wave w3" d="M122 30c-6-5 6-10 0-16"/>
 
-  <!-- conduit d'évacuation (à l'arrière) -->
-  <path class="ln" d="M198 40V12h16v28"/>
-  <path class="ln" d="M193 12h26"/>
+  <!-- plateau (même diamètre que le corps) et corps cylindrique -->
+  <rect class="ln" x="42" y="34" width="116" height="12" rx="6"/>
+  <path class="ln body" d="M42 46h116v258a12 12 0 0 1-12 12H54a12 12 0 0 1-12-12Z"/>
+  <path class="ln thin" d="M54 64v232"/>
 
-  <!-- corps -->
-  <rect class="ln body" x="72" y="38" width="156" height="238" rx="18"/>
-  <path class="ln thin" d="M72 80h156"/>
+  <!-- porte et poignée -->
+  <rect class="ln" x="52" y="104" width="96" height="162" rx="9"/>
+  <path class="ln" d="M141 163v44"/>
 
-  <!-- bandeau du haut : afficheur + deux boutons -->
-  <rect class="ln" x="124" y="52" width="52" height="15" rx="4"/>
-  <circle class="ln" cx="97" cy="59.5" r="4"/>
-  <circle class="ln" cx="203" cy="59.5" r="4"/>
-
-  <!-- porte vitrée -->
-  <rect class="ln glass" x="90" y="94" width="120" height="138" rx="12"/>
-  <rect class="ln thin" x="99" y="103" width="102" height="120" rx="7"/>
-  <path class="ln" d="M220 140v38"/>
-
-  <!-- feu -->
+  <!-- vitre -->
+  <rect class="ln glass" x="68" y="120" width="64" height="118" rx="6"/>
   <g clip-path="url(#obsGlassClip)">
-    <ellipse class="glow" fill="url(#obsGlow)" cx="150" cy="196" rx="64" ry="58"/>
+    <ellipse class="glow" fill="url(#obsGlow)" cx="100" cy="212" rx="34" ry="40"/>
     <g class="flame-wrap">
       <g class="flame">
-        <path class="f-out" d="M150 218C130 218 122 202 128 186C131 178 138 174 138 164C146 170 148 176 148 182C154 174 156 162 154 152C170 164 178 182 176 198C175 210 166 218 150 218Z"/>
-        <path class="f-in" d="M150 218C140 218 136 210 140 202C143 196 148 194 150 188C156 194 160 202 158 209C157 215 154 218 150 218Z"/>
+        <g transform="translate(100 232) scale(.55 1) translate(-150 -218)">
+          <path class="f-out" d="M150 218C130 218 122 202 128 186C131 178 138 174 138 164C146 170 148 176 148 182C154 174 156 162 154 152C170 164 178 182 176 198C175 210 166 218 150 218Z"/>
+          <path class="f-in" d="M150 218C140 218 136 210 140 202C143 196 148 194 150 188C156 194 160 202 158 209C157 215 154 218 150 218Z"/>
+        </g>
       </g>
     </g>
+    <rect class="ln-fill" x="84" y="232" width="32" height="6" rx="2"/>
   </g>
-  <!-- creuset -->
-  <rect class="ln-fill" x="118" y="218" width="64" height="8" rx="3"/>
-  <!-- reflets du verre -->
-  <path class="ln thin" d="M108 148l30-34M108 176l52-60" clip-path="url(#obsGlassClip)"/>
-
-  <!-- tiroir à cendres -->
-  <rect class="ln" x="124" y="244" width="52" height="18" rx="5"/>
-  <path class="ln thin" d="M140 253h20"/>
 
   <!-- pieds -->
-  <rect class="ln-fill" x="88" y="278" width="26" height="8" rx="3"/>
-  <rect class="ln-fill" x="186" y="278" width="26" height="8" rx="3"/>
+  <rect class="ln-fill" x="58" y="318" width="16" height="8" rx="3"/>
+  <rect class="ln-fill" x="126" y="318" width="16" height="8" rx="3"/>
 </svg>`;
 
 const STYLE = `
@@ -277,7 +264,8 @@ const STYLE = `
   /* --- Scène : grande illustration + pastilles ------------------------- */
   .stage { position: relative; margin-top: 3cqw; height: 66cqw; }
   .art { position: absolute; inset: 0; display: flex; justify-content: center; }
-  .art svg, .art img { height: 100%; width: auto; aspect-ratio: 1 / 1; max-width: none; object-fit: contain; }
+  .art svg, .art img { height: 100%; width: auto; max-width: none; object-fit: contain; }
+  .art svg { aspect-ratio: 200 / 340; }
 
   .stove { color: var(--htc-stove, var(--primary-text-color)); overflow: visible; }
   .stove .ln { fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
@@ -286,7 +274,7 @@ const STYLE = `
   .stove .body { fill: var(--htc-tile); }
   .stove .glass { fill: currentColor; fill-opacity: .05; }
   .stove .glow { opacity: 0; transition: opacity .6s; }
-  .stove .flame-wrap { transform-box: fill-box; transform-origin: 50% 100%; opacity: 0; transform: scale(.4); transition: transform .6s, opacity .6s; }
+  .stove .flame-wrap { transform-box: fill-box; transform-origin: 50% 100%; opacity: 0; transform: scale(.5, .3); transition: transform .6s, opacity .6s; }
   .stove .flame { transform-box: fill-box; transform-origin: 50% 100%; }
   .stove .f-out { fill: var(--htc-accent); }
   .stove .f-in { fill: #ffe2b8; }
@@ -295,10 +283,10 @@ const STYLE = `
   .stage.p-heating .flame-wrap { opacity: 1; transform: scale(1); }
   .stage.p-heating .flame { animation: obs-flick 1.3s ease-in-out infinite; }
   .stage.p-heating .glow { opacity: .55; }
-  .stage.p-preheating .flame-wrap { opacity: .9; transform: scale(.62); }
+  .stage.p-preheating .flame-wrap { opacity: .9; transform: scale(.87, .48); }
   .stage.p-preheating .flame { animation: obs-pulse 2s ease-in-out infinite; }
   .stage.p-preheating .glow { opacity: .3; }
-  .stage.p-standby .flame-wrap { opacity: .55; transform: scale(.3); }
+  .stage.p-standby .flame-wrap { opacity: .55; transform: scale(.7, .3); }
   .stage.p-standby .glow { opacity: .12; }
   .stage.air .wave { animation: obs-rise 2.4s ease-in-out infinite; }
   .stage.air .w2 { animation-delay: .6s; }
@@ -323,7 +311,7 @@ const STYLE = `
   .chips.l { left: 0; align-items: flex-start; }
   .chips.r { right: 0; align-items: flex-end; }
   .chip {
-    box-sizing: border-box; max-width: 30cqw; padding: 5px 10px 5px 8px; border: none; border-radius: 14px;
+    box-sizing: border-box; max-width: 28cqw; padding: 5px 10px 5px 8px; border: none; border-radius: 14px;
     background: var(--htc-tile); color: var(--primary-text-color); font: inherit;
     font-size: clamp(11px, 3.6cqw, 14px); font-weight: 500; line-height: 1.2; white-space: nowrap;
     display: flex; align-items: center; gap: 4px; --mdc-icon-size: clamp(16px, 4.8cqw, 20px);
