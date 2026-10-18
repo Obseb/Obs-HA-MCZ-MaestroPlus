@@ -4,7 +4,7 @@ Carte Lovelace pour Home Assistant dédiée aux **poêles à pellets MCZ piloté
 
 Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](https://github.com/Obseb/Thermostat-Card-Bosch-BTH-RA), en **deux fois plus haute** (8 lignes de grille au lieu de 4) et à la **même largeur** (6 colonnes).
 
-![Les états du poêle : chauffe, allumage, arrêt](images/stove-states.png)
+![Les états du poêle : chauffe, allumage, arrêt](images/stove-states-v2.png)
 
 *Illustration du poêle (inspirée du MCZ Mood) : chauffe, allumage, arrêt.*
 
