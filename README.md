@@ -1,7 +1,5 @@
 # Obs HA MCZ Maestro+
 
-Carte Lovelace pour Home Assistant dédiée aux **poêles à pellets MCZ pilotés par Maestro+**, basée sur l'intégration [Robbe-B/maestro_mcz](https://github.com/Robbe-B/maestro_mcz).
-
 Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](https://github.com/Obseb/Thermostat-Card-Bosch-BTH-RA), en **deux fois plus haute** (8 lignes de grille au lieu de 4) et à la **même largeur** (6 colonnes).
 
 ## Ce que montre la carte
