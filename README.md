@@ -2,7 +2,7 @@
 
 Carte Lovelace pour Home Assistant dédiée aux **poêles à pellets MCZ pilotés par Maestro+**, basée sur l'intégration [Robbe-B/maestro_mcz](https://github.com/Robbe-B/maestro_mcz).
 
-Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](https://github.com/Obseb/Thermostat-Card-Bosch-BTH-RA), en **deux fois plus haute** (8 lignes de grille au lieu de 4) et à la **même largeur** (6 colonnes).
+Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](https://github.com/Obseb/Thermostat-Card-Bosch-BTH-RA), en **deux fois plus haute** (10 lignes de grille par défaut au lieu de 4 à 5) et à la **même largeur** (6 colonnes).
 
 ![Les états du poêle : chauffe, allumage, arrêt](images/stove-states-v2.png)
 
@@ -12,7 +12,7 @@ Elle reprend le thème et les chevrons de [Thermostat Card – Bosch BTH-RA](htt
 
 De haut en bas :
 
-1. **En-tête** : badge rond + nom du poêle + état en cours (*Chauffe en cours*, *Allumage en cours*, *En veille*, *Extinction en cours*, *Éteint*, *Alarme*). À droite, l'**interrupteur Off ⇄ Chauffe** (`off` ⇄ `heat`).
+1. **En-tête** : badge rond (icône de l'entité, cliquable) + nom du poêle + état en cours (*Chauffe en cours*, *Allumage en cours*, *En veille*, *Extinction en cours*, *Éteint*, *Alarme*). À droite, l'**interrupteur Off ⇄ Chauffe** (`off` ⇄ `heat`).
 2. **3 cases alignées** :
    - **Préréglage** : `manual`, `auto`, `overnight`, `comfort`, `turbo` (selon le modèle). Un appui ouvre la liste.
    - **Ventilo 1** et **Ventilo 2** : niveau actuel (ex. `3/5`) ou mode (Auto…). Un appui ouvre les niveaux, les modes et « Arrêt ». L'icône tourne d'autant plus vite que le niveau est élevé.
@@ -64,13 +64,13 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | --- | --- | --- | --- |
 | `entity` | string | **requis** | Entité `climate.xxx` de l'intégration Maestro MCZ |
 | `name` | string | nom de l'entité | Titre de la carte |
-| `icon` | string | selon l'état | Icône du badge (ex. `mdi:fire`) |
+| `icon` | string | icône de l'entité | Icône du badge (ex. `mdi:fire`) |
+| `tap_action` | action | `more-info` | Action au clic sur le badge (voir ci-dessous) |
 | `image` | string | dessin intégré | URL d'une image à afficher à la place du dessin du poêle (ex. `/local/mood.png`) |
 | `heat_mode` | string | `heat` | Mode activé par l'interrupteur |
-| `step` | number | `0.5` | Pas de la consigne |
+| `step` | number | `0.5` | Pas consigne de température |
 | `show_status` | boolean | `true` | Affiche l'état sous le nom |
 | `show_chips` | boolean | `true` | Affiche les pastilles autour du poêle |
-| `show_settings` | boolean | `false` | Affiche l'icône ⚙ (fenêtre « plus d'infos ») |
 | `fan1`, `fan2` | entity | auto | Entités `fan` des ventilateurs 1 et 2 |
 | `power` | entity | auto | Entité `select` de la puissance manuelle |
 | `eco`, `timer` | entity | auto | Entités `switch` Start & Stop et Chrono |
@@ -78,6 +78,40 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | `alarm`, `alarm_code`, `alarm_reset` | entity | auto | Alarme (`binary_sensor`, `sensor`, `button`) |
 
 Pour masquer une pastille ou une case, mettez son option à `false` (ex. `fan2: false`, `timer: false`).
+
+### Action du badge
+
+Le badge rond en haut à gauche est cliquable. Dans l'éditeur visuel, choisissez **Action au clic sur le badge** : *Aucune*, *Plus d'infos* (par défaut), *Naviguer*, *URL* ou *Effectuer une action*. En YAML :
+
+```yaml
+tap_action:
+  action: more-info            # none | more-info | navigate | url | perform-action
+```
+
+```yaml
+tap_action:
+  action: navigate
+  navigation_path: /lovelace/chauffage
+```
+
+```yaml
+tap_action:
+  action: url
+  url_path: https://exemple.fr
+```
+
+```yaml
+tap_action:
+  action: perform-action
+  perform_action: script.turn_on
+  target:
+    entity_id: script.allumer_poele
+  data: {}
+```
+
+### Taille et mise en page
+
+Dans une vue **Sections**, la carte suit le réglage **Mise en page** : elle occupe exactement les lignes et colonnes choisies (10 lignes × 6 colonnes par défaut, 8 lignes au minimum). Agrandir la carte en hauteur agrandit le poêle ; l'élargir ne change pas sa hauteur. Dans les autres vues, la carte garde sa hauteur naturelle.
 
 ### Exemple complet
 

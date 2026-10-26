@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.2.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -41,7 +41,6 @@ const I18N = {
     fan1: "Fan 1",
     fan2: "Fan 2",
     power: "Stove on / off",
-    settings: "Settings",
     notfound: "Entity not found",
     speed: "Speed",
     modes: "Mode",
@@ -74,7 +73,6 @@ const I18N = {
     fan1: "Ventilo 1",
     fan2: "Ventilo 2",
     power: "Poêle marche / arrêt",
-    settings: "Réglages",
     notfound: "Entité introuvable",
     speed: "Vitesse",
     modes: "Mode",
@@ -181,10 +179,11 @@ const STOVE_SVG = `
 </svg>`;
 
 const STYLE = `
-  :host { display: block; }
+  :host { display: block; height: 100%; }
   ha-card {
     container-type: inline-size;
-    padding: 24px 22px;
+    display: flex; flex-direction: column; height: 100%;
+    padding: 14px 16px;
     background: var(--htc-card-bg, var(--ha-card-background, var(--card-background-color, #1c1c1c)));
     color: var(--primary-text-color, #fff);
     border-radius: var(--ha-card-border-radius, 24px);
@@ -195,7 +194,8 @@ const STYLE = `
     --htc-accent: #e8958a;
     --htc-accent-bg: #48322f;
   }
-  .content { position: relative; }
+  .content { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .header, .tiles, .main { flex: 0 0 auto; }
 
   /* --- En-tête : badge + nom | interrupteur --------------------------- */
   .header { display: flex; justify-content: space-between; align-items: center; gap: 3cqw; }
@@ -206,8 +206,13 @@ const STYLE = `
     border-radius: 50%; background: var(--htc-accent); color: var(--htc-accent-bg);
     display: flex; align-items: center; justify-content: center;
     --mdc-icon-size: clamp(22px, 7.5cqw, 30px);
-    transition: background .3s, color .3s;
+    padding: 0; border: none; font: inherit; cursor: pointer;
+    transition: background .3s, color .3s, filter .15s;
   }
+  .badge:hover { filter: brightness(1.12); }
+  .badge.noact { cursor: default; filter: none; }
+  .badge:focus-visible { outline: 2px solid var(--htc-accent); outline-offset: 3px; }
+  .badge ha-state-icon, .badge ha-icon { display: flex; }
   .txt { min-width: 0; }
   .title {
     font-size: clamp(22px, 9cqw, 33px); font-weight: 500; line-height: 1.2;
@@ -216,12 +221,6 @@ const STYLE = `
   .status { font-size: clamp(12px, 4cqw, 16px); font-weight: 500; color: var(--htc-muted); margin-top: 2px; }
 
   .right { display: flex; align-items: center; gap: 2cqw; flex: 0 0 auto; }
-  .gear {
-    background: none; border: none; color: var(--htc-muted); cursor: pointer;
-    padding: 4px; border-radius: 50%; --mdc-icon-size: 24px; display: flex;
-  }
-  .gear:hover { color: var(--primary-text-color); }
-
   /* Interrupteur Off / Chauffe : sa couleur suit l'état (--htc-accent) */
   .switch {
     --sw-h: clamp(24px, 9cqw, 34px);
@@ -242,9 +241,9 @@ const STYLE = `
   .switch:focus-visible { outline: 2px solid var(--htc-accent); outline-offset: 3px; }
 
   /* --- 3 cases : préréglage · ventilo 1 · ventilo 2 -------------------- */
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.6cqw; margin-top: 5cqw; }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.6cqw; margin-top: clamp(8px, 2.4cqw, 12px); }
   .tile {
-    box-sizing: border-box; min-height: clamp(66px, 19cqw, 86px); padding: 6px 4px;
+    box-sizing: border-box; min-height: clamp(58px, 15cqw, 74px); padding: 6px 4px;
     border: none; border-radius: 18px; background: var(--htc-tile); color: var(--primary-text-color);
     font: inherit; cursor: pointer;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -262,10 +261,11 @@ const STYLE = `
   @keyframes obs-spin { to { transform: rotate(360deg); } }
 
   /* --- Scène : grande illustration + pastilles ------------------------- */
-  .stage { position: relative; margin-top: 3cqw; height: 66cqw; }
+  /* La scène absorbe toute la hauteur disponible : elle grandit ou rétrécit avec le
+     nombre de lignes choisi dans « Mise en page » ; la largeur ne change pas la hauteur. */
+  .stage { position: relative; margin-top: clamp(4px, 1.5cqw, 8px); flex: 1 1 min(66cqw, 320px); min-height: 90px; }
   .art { position: absolute; inset: 0; display: flex; justify-content: center; }
-  .art svg, .art img { height: 100%; width: auto; max-width: none; object-fit: contain; }
-  .art svg { aspect-ratio: 200 / 340; }
+  .art svg, .art img { width: 100%; height: 100%; object-fit: contain; }
 
   .stove { color: var(--htc-stove, var(--primary-text-color)); overflow: visible; }
   .stove .ln { fill: none; stroke: currentColor; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
@@ -339,14 +339,14 @@ const STYLE = `
   }
 
   /* --- Corps : température actuelle | consigne (identique à la carte Bosch) */
-  .main { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3cqw; margin-top: 3cqw; }
+  .main { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3cqw; margin-top: clamp(4px, 1.5cqw, 8px); }
   .current {
     display: flex; align-items: center; gap: 3cqw; min-width: 0; white-space: nowrap;
     color: var(--htc-accent); transition: color .3s;
   }
   .current .thermo { color: var(--htc-muted); --mdc-icon-size: clamp(35px, 12.2cqw, 53px); flex: 0 0 auto; }
-  .current .num { font-size: 17.5cqw; font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
-  .current .unit { align-self: flex-start; margin-top: 1.2cqw; font-size: 7.7cqw; font-weight: 400; line-height: 1; }
+  .current .num { font-size: clamp(44px, 17.5cqw, 68px); font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
+  .current .unit { align-self: flex-start; margin-top: 4px; font-size: clamp(20px, 7.7cqw, 30px); font-weight: 400; line-height: 1; }
 
   .targets { display: flex; align-items: stretch; gap: 2cqw; }
   .target { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 24cqw; }
@@ -432,8 +432,8 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     if (!config || !config.entity) throw new Error("Veuillez définir une entité `entity` (climate.xxx).");
     this._config = {
       show_status: true,
-      show_settings: false,
       show_chips: true,
+      tap_action: { action: "more-info" },
       ...config,
     };
     this._res = {};
@@ -447,13 +447,14 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._update();
   }
 
-  // Deux fois la hauteur de la carte Bosch BTH-RA (4 lignes → 8 lignes)
+  // Hauteur naturelle (vue « masonry ») ≈ 2 × la carte Bosch BTH-RA
   getCardSize() {
-    return 8;
+    return 12;
   }
 
+  // Vue « sections » : la carte remplit exactement les lignes × colonnes choisies
   getGridOptions() {
-    return { columns: 6, rows: 8, min_columns: 4, min_rows: 6 };
+    return { columns: 6, rows: 10, min_columns: 3, min_rows: 8 };
   }
 
   get _t() {
@@ -469,14 +470,13 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
         <div class="content">
           <div class="header">
             <div class="id">
-              <div class="badge"><ha-icon icon="mdi:fire"></ha-icon></div>
+              <button class="badge" data-act="badge" aria-label="Badge"><ha-state-icon hidden></ha-state-icon><ha-icon icon="mdi:stove"></ha-icon></button>
               <div class="txt">
                 <div class="title"></div>
                 <div class="status"></div>
               </div>
             </div>
             <div class="right">
-              <button class="gear" data-act="more-info" aria-label="Settings"><ha-icon icon="mdi:cog"></ha-icon></button>
               <button class="switch" role="switch" aria-checked="false" data-act="toggle"><span class="knob"></span></button>
             </div>
           </div>
@@ -502,10 +502,11 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       error: r.querySelector(".error"),
       content: r.querySelector(".content"),
       card: r.querySelector("ha-card"),
+      badge: r.querySelector(".badge"),
       badgeIcon: r.querySelector(".badge ha-icon"),
+      badgeState: r.querySelector(".badge ha-state-icon"),
       title: r.querySelector(".title"),
       status: r.querySelector(".status"),
-      gear: r.querySelector(".gear"),
       sw: r.querySelector(".switch"),
       tiles: r.querySelector(".tiles"),
       stage: r.querySelector(".stage"),
@@ -532,10 +533,8 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     if (!keepOpen) this._closeMenu();
     if (!el || el.disabled) return;
     const act = el.dataset.act;
-    if (act === "more-info") {
-      this.dispatchEvent(
-        new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId: this._config.entity } })
-      );
+    if (act === "badge") {
+      this._runAction(this._config.tap_action);
     } else if (act === "toggle") {
       this._toggle();
     } else if (act === "inc" || act === "dec") {
@@ -551,6 +550,32 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     } else if (act === "reset") {
       const id = this._ent("alarm_reset");
       if (id) this._hass.callService("button", "press", { entity_id: id });
+    }
+  }
+
+  // Action du badge : ne rien faire / plus d'infos / naviguer / URL / effectuer une action
+  _runAction(cfg) {
+    const c = cfg || {};
+    const action = c.action || "more-info";
+    const h = this._hass;
+    if (action === "none") return;
+    if (action === "more-info") {
+      this.dispatchEvent(
+        new CustomEvent("hass-more-info", { bubbles: true, composed: true, detail: { entityId: c.entity || this._config.entity } })
+      );
+    } else if (action === "navigate") {
+      const path = c.navigation_path;
+      if (!path) return;
+      if (c.navigation_replace) window.history.replaceState(null, "", path);
+      else window.history.pushState(null, "", path);
+      window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: !!c.navigation_replace } }));
+    } else if (action === "url") {
+      if (c.url_path) window.open(c.url_path, "_blank", "noopener");
+    } else if (action === "perform-action" || action === "call-service") {
+      const svc = c.perform_action || c.service;
+      if (!h || typeof svc !== "string" || !svc.includes(".")) return;
+      const [domain, service] = svc.split(".");
+      h.callService(domain, service, c.data || c.service_data || {}, c.target);
     }
   }
 
@@ -777,19 +802,30 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     const status = this._config.show_status ? t.phases[phase] : "";
     E.status.hidden = !status;
     this._setText(E.status, "status", status);
-    E.gear.hidden = !this._config.show_settings;
-    E.gear.setAttribute("aria-label", t.settings);
 
     // Couleurs selon la phase
     E.card.style.setProperty("--htc-accent", P.color);
     E.card.style.setProperty("--htc-accent-bg", P.bg);
 
     // Badge + interrupteur
-    const icon = this._config.icon || P.icon;
-    if (this._cache.badge !== icon) {
-      E.badgeIcon.setAttribute("icon", icon);
-      this._cache.badge = icon;
+    // Icône du badge : celle de l'entité (comme dans Home Assistant), sauf si `icon` est défini
+    if (customElements.get("ha-state-icon")) {
+      E.badgeState.hidden = false;
+      E.badgeIcon.hidden = true;
+      E.badgeState.hass = this._hass;
+      E.badgeState.stateObj = s;
+      E.badgeState.icon = this._config.icon || undefined;
+    } else {
+      E.badgeState.hidden = true;
+      E.badgeIcon.hidden = false;
+      const icon = this._config.icon || a.icon || "mdi:stove";
+      if (this._cache.badge !== icon) {
+        E.badgeIcon.setAttribute("icon", icon);
+        this._cache.badge = icon;
+      }
     }
+    const act = (this._config.tap_action && this._config.tap_action.action) || "more-info";
+    E.badge.classList.toggle("noact", act === "none");
     E.sw.classList.toggle("on", on);
     E.sw.setAttribute("aria-checked", String(on));
     E.sw.setAttribute("aria-label", t.power);
@@ -1048,11 +1084,11 @@ const EDITOR_SCHEMA = [
   { name: "entity", required: true, selector: { entity: { domain: "climate" } } },
   { name: "name", selector: { text: {} } },
   { name: "icon", selector: { icon: {} } },
+  { name: "tap_action", selector: { ui_action: { actions: ["none", "more-info", "navigate", "url", "perform-action"], default_action: "more-info" } } },
   { name: "image", selector: { text: {} } },
   { name: "step", selector: { number: { min: 0.1, max: 5, step: 0.1, mode: "box" } } },
   { name: "show_status", selector: { boolean: {} } },
   { name: "show_chips", selector: { boolean: {} } },
-  { name: "show_settings", selector: { boolean: {} } },
   {
     type: "expandable",
     name: "",
@@ -1064,12 +1100,12 @@ const EDITOR_SCHEMA = [
 const EDITOR_LABELS = {
   entity: "Entité du poêle (climate)",
   name: "Nom (optionnel)",
-  icon: "Icône du badge (optionnel)",
+  icon: "Icône du badge (par défaut : icône de l'entité)",
+  tap_action: "Action au clic sur le badge",
   image: "Image personnalisée à la place du dessin (URL, optionnel)",
-  step: "Pas de température (optionnel)",
+  step: "Pas consigne de température",
   show_status: "Afficher l'état sous le nom",
   show_chips: "Afficher les pastilles autour du poêle",
-  show_settings: "Afficher l'icône réglages",
   fan1: "Ventilateur 1 (fan)",
   fan2: "Ventilateur 2 (fan)",
   power: "Puissance manuelle (select)",
@@ -1118,7 +1154,6 @@ class ObsHaMczMaestroPlusCardEditor extends HTMLElement {
     this._form.data = {
       show_status: true,
       show_chips: true,
-      show_settings: false,
       ...this._config,
     };
   }
