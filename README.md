@@ -111,7 +111,14 @@ tap_action:
 
 ### Taille et mise en page
 
-Dans une vue **Sections**, la carte suit le réglage **Mise en page** : elle occupe exactement les lignes et colonnes choisies (10 lignes × 6 colonnes par défaut, 8 lignes au minimum). Agrandir la carte en hauteur agrandit le poêle ; l'élargir ne change pas sa hauteur. Dans les autres vues, la carte garde sa hauteur naturelle.
+Les dimensions du nom, du badge, de l'interrupteur, de la température actuelle, de la consigne et des chevrons sont **identiques à celles de la carte [Thermostat Card – Bosch BTH-RA](https://github.com/Obseb/Thermostat-Card-Bosch-BTH-RA)** : elles utilisent le même système d'unités et la même largeur de référence. À largeur égale, les deux cartes ont donc les mêmes proportions.
+
+Dans une vue **Sections**, la carte suit le réglage **Mise en page** : elle occupe exactement les lignes et colonnes choisies (10 lignes × 6 colonnes par défaut, 6 lignes au minimum).
+- Ajouter des lignes agrandit le poêle, qui occupe toute la hauteur disponible.
+- Élargir la carte ne change pas sa hauteur.
+- Si la hauteur est trop faible pour tout afficher, l'ensemble est réduit proportionnellement.
+
+Dans les autres vues, la carte garde sa hauteur naturelle.
 
 ### Exemple complet
 

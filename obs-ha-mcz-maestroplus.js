@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.3.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -178,12 +178,24 @@ const STOVE_SVG = `
   <rect class="ln-fill" x="126" y="318" width="16" height="8" rx="3"/>
 </svg>`;
 
+// Toutes les tailles sont exprimées en « unités », comme dans la carte Bosch BTH-RA :
+// 1 unité = 1/REF_W de la largeur de la carte. La variable --u est recalculée en JS (_fit)
+// pour que la carte tienne dans la largeur ET la hauteur données par la mise en page.
+// REF_W est volontairement celle de la carte Bosch (112,4) : à largeur égale, le nom, le badge,
+// l'interrupteur, la température et les chevrons ont exactement les mêmes dimensions.
+const REF_W = 112.4;
+const PAD_X = 4.4; // marge intérieure horizontale (unités)
+const PAD_Y = 4.2; // marge intérieure verticale (unités)
+const MIN_STAGE = 30; // hauteur minimale de la scène du poêle (unités)
+const STAGE_H = 70; // hauteur « naturelle » de la scène quand la carte n'a pas de hauteur imposée
+const U = (k) => `calc(var(--u, ${(100 / REF_W).toFixed(4)}cqw) * ${k})`;
+
 const STYLE = `
   :host { display: block; height: 100%; }
   ha-card {
     container-type: inline-size;
-    display: flex; flex-direction: column; height: 100%;
-    padding: 14px 16px;
+    display: flex; flex-direction: column; justify-content: flex-start;
+    height: 100%; overflow: hidden;
     background: var(--htc-card-bg, var(--ha-card-background, var(--card-background-color, #1c1c1c)));
     color: var(--primary-text-color, #fff);
     border-radius: var(--ha-card-border-radius, 24px);
@@ -194,66 +206,70 @@ const STYLE = `
     --htc-accent: #e8958a;
     --htc-accent-bg: #48322f;
   }
-  .content { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .content {
+    position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;
+    box-sizing: border-box; padding: ${U(PAD_Y)} ${U(PAD_X)};
+  }
   .header, .tiles, .main { flex: 0 0 auto; }
 
   /* --- En-tête : badge + nom | interrupteur --------------------------- */
-  .header { display: flex; justify-content: space-between; align-items: center; gap: 3cqw; }
-  .id { display: flex; align-items: center; gap: 4cqw; min-width: 0; }
+  .header { display: flex; justify-content: space-between; align-items: center; gap: ${U(3)}; }
+  .id { display: flex; align-items: center; gap: ${U(4)}; min-width: 0; }
   .badge {
-    flex: 0 0 auto; box-sizing: border-box;
-    width: 15cqw; height: 15cqw; min-width: 40px; min-height: 40px; max-width: 56px; max-height: 56px;
-    border-radius: 50%; background: var(--htc-accent); color: var(--htc-accent-bg);
+    flex: 0 0 auto; box-sizing: border-box; margin: 0; padding: 0; border: none; font: inherit;
+    width: ${U(15.3)}; height: ${U(15.3)}; border-radius: 50%;
+    background: var(--htc-accent); color: var(--htc-accent-bg);
     display: flex; align-items: center; justify-content: center;
-    --mdc-icon-size: clamp(22px, 7.5cqw, 30px);
-    padding: 0; border: none; font: inherit; cursor: pointer;
-    transition: background .3s, color .3s, filter .15s;
+    --mdc-icon-size: ${U(8.6)};
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: background .3s, color .3s, filter .15s, transform .1s;
   }
   .badge:hover { filter: brightness(1.12); }
-  .badge.noact { cursor: default; filter: none; }
+  .badge:active { transform: scale(0.94); }
+  .badge.noact { cursor: default; filter: none; transform: none; }
   .badge:focus-visible { outline: 2px solid var(--htc-accent); outline-offset: 3px; }
   .badge ha-state-icon, .badge ha-icon { display: flex; }
   .txt { min-width: 0; }
   .title {
-    font-size: clamp(22px, 9cqw, 33px); font-weight: 500; line-height: 1.2;
+    font-size: ${U(6.7)}; font-weight: 500; line-height: 1.2;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .status { font-size: clamp(12px, 4cqw, 16px); font-weight: 500; color: var(--htc-muted); margin-top: 2px; }
+  .status { font-size: ${U(4.6)}; font-weight: 500; color: var(--htc-muted); margin-top: 2px; }
 
-  .right { display: flex; align-items: center; gap: 2cqw; flex: 0 0 auto; }
+  .right { display: flex; align-items: center; gap: ${U(3)}; flex: 0 0 auto; }
   /* Interrupteur Off / Chauffe : sa couleur suit l'état (--htc-accent) */
   .switch {
-    --sw-h: clamp(24px, 9cqw, 34px);
+    --sw-h: ${U(9.2)};
     --sw-w: calc(var(--sw-h) * 2);
-    --knob: calc(var(--sw-h) - 10px);
+    --knob: calc(var(--sw-h) - ${U(3.84)});
     position: relative; flex: 0 0 auto; box-sizing: border-box; padding: 0; cursor: pointer;
     width: var(--sw-w); height: var(--sw-h); border-radius: 999px;
-    border: 2px solid var(--htc-accent); background: var(--htc-accent-bg);
+    border: ${U(0.77)} solid var(--htc-accent); background: var(--htc-accent-bg);
     transition: background .3s, border-color .3s;
   }
   .switch .knob {
-    position: absolute; top: 3px; left: 3px; width: var(--knob); height: var(--knob);
+    position: absolute; top: ${U(1.15)}; left: ${U(1.15)}; width: var(--knob); height: var(--knob);
     border-radius: 50%; background: var(--htc-accent);
     transition: transform .25s ease, background .3s;
   }
-  .switch.on .knob { transform: translateX(calc(var(--sw-w) - 10px - var(--knob))); }
+  .switch.on .knob { transform: translateX(calc(var(--sw-w) - ${U(3.84)} - var(--knob))); }
   .switch:disabled { opacity: .4; cursor: default; }
   .switch:focus-visible { outline: 2px solid var(--htc-accent); outline-offset: 3px; }
 
   /* --- 3 cases : préréglage · ventilo 1 · ventilo 2 -------------------- */
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.6cqw; margin-top: clamp(8px, 2.4cqw, 12px); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: ${U(2.6)}; margin-top: ${U(3.2)}; }
   .tile {
-    box-sizing: border-box; min-height: clamp(58px, 15cqw, 74px); padding: 6px 4px;
-    border: none; border-radius: 18px; background: var(--htc-tile); color: var(--primary-text-color);
+    box-sizing: border-box; min-height: ${U(17.5)}; padding: ${U(1.5)} ${U(1)};
+    border: none; border-radius: ${U(4.6)}; background: var(--htc-tile); color: var(--primary-text-color);
     font: inherit; cursor: pointer;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-    --mdc-icon-size: clamp(22px, 7cqw, 30px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: ${U(0.5)};
+    --mdc-icon-size: ${U(7.4)};
     transition: filter .15s, background .2s, color .2s;
   }
   .tile:hover { filter: brightness(1.2); }
-  .tile .tv { font-size: clamp(13px, 4.6cqw, 18px); font-weight: 500; line-height: 1.15; white-space: nowrap; }
+  .tile .tv { font-size: ${U(4.6)}; font-weight: 500; line-height: 1.15; white-space: nowrap; }
   .tile .tv small { font-size: .72em; font-weight: 400; opacity: .7; }
-  .tile .tl { font-size: clamp(10px, 3cqw, 12px); letter-spacing: .03em; color: var(--htc-muted); }
+  .tile .tl { font-size: ${U(3.1)}; letter-spacing: .03em; color: var(--htc-muted); }
   .tile.active { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .tile.active .tl { color: var(--htc-accent); opacity: .8; }
   .tile:disabled { opacity: .4; cursor: default; filter: none; }
@@ -261,9 +277,9 @@ const STYLE = `
   @keyframes obs-spin { to { transform: rotate(360deg); } }
 
   /* --- Scène : grande illustration + pastilles ------------------------- */
-  /* La scène absorbe toute la hauteur disponible : elle grandit ou rétrécit avec le
-     nombre de lignes choisi dans « Mise en page » ; la largeur ne change pas la hauteur. */
-  .stage { position: relative; margin-top: clamp(4px, 1.5cqw, 8px); flex: 1 1 min(66cqw, 320px); min-height: 90px; }
+  /* La scène absorbe toute la hauteur disponible : elle grandit avec le nombre de lignes choisi
+     dans « Mise en page » ; la largeur ne change pas la hauteur. */
+  .stage { position: relative; margin-top: ${U(1.5)}; flex: 1 1 ${U(STAGE_H)}; min-height: 0; }
   .art { position: absolute; inset: 0; display: flex; justify-content: center; }
   .art svg, .art img { width: 100%; height: 100%; object-fit: contain; }
 
@@ -307,14 +323,14 @@ const STYLE = `
     .stage .flame, .stage .wave, .tile ha-icon.spin { animation: none !important; }
   }
 
-  .chips { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 2cqw; z-index: 2; }
+  .chips { position: absolute; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: ${U(2)}; z-index: 2; }
   .chips.l { left: 0; align-items: flex-start; }
   .chips.r { right: 0; align-items: flex-end; }
   .chip {
-    box-sizing: border-box; max-width: 28cqw; padding: 5px 10px 5px 8px; border: none; border-radius: 14px;
+    box-sizing: border-box; max-width: ${U(28)}; padding: ${U(1.3)} ${U(2.5)} ${U(1.3)} ${U(2)}; border: none; border-radius: ${U(3.6)};
     background: var(--htc-tile); color: var(--primary-text-color); font: inherit;
-    font-size: clamp(11px, 3.6cqw, 14px); font-weight: 500; line-height: 1.2; white-space: nowrap;
-    display: flex; align-items: center; gap: 4px; --mdc-icon-size: clamp(16px, 4.8cqw, 20px);
+    font-size: ${U(3.6)}; font-weight: 500; line-height: 1.2; white-space: nowrap;
+    display: flex; align-items: center; gap: ${U(1)}; --mdc-icon-size: ${U(4.8)};
     overflow: hidden; text-overflow: ellipsis; transition: background .2s, color .2s;
   }
   .chip ha-icon { color: var(--htc-muted); flex: 0 0 auto; }
@@ -328,42 +344,44 @@ const STYLE = `
 
   .alarm {
     position: absolute; top: 0; left: 0; right: 0; z-index: 3; box-sizing: border-box;
-    display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px;
-    background: #4a2a2a; color: #ef6c6c; font-size: clamp(12px, 3.8cqw, 15px); font-weight: 500;
-    --mdc-icon-size: 22px;
+    display: flex; align-items: center; gap: ${U(2)}; padding: ${U(2)} ${U(3)}; border-radius: ${U(3.6)};
+    background: #4a2a2a; color: #ef6c6c; font-size: ${U(3.8)}; font-weight: 500;
+    --mdc-icon-size: ${U(5.6)};
   }
   .alarm .atxt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .alarm button {
     border: 1px solid currentColor; background: none; color: inherit; font: inherit; font-size: .9em;
-    padding: 3px 10px; border-radius: 999px; cursor: pointer;
+    padding: ${U(0.8)} ${U(2.6)}; border-radius: 999px; cursor: pointer;
   }
 
-  /* --- Corps : température actuelle | consigne (identique à la carte Bosch) */
-  .main { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3cqw; margin-top: clamp(4px, 1.5cqw, 8px); }
+  /* --- Corps : température actuelle | consigne (mêmes dimensions que la carte Bosch) */
+  .main { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: ${U(3)}; margin-top: ${U(1.5)}; }
+  .main .current { grid-column: 1; }
+  .main .targets { grid-column: 3; }
   .current {
-    display: flex; align-items: center; gap: 3cqw; min-width: 0; white-space: nowrap;
+    display: flex; align-items: center; gap: ${U(3)}; min-width: 0; white-space: nowrap;
     color: var(--htc-accent); transition: color .3s;
   }
-  .current .thermo { color: var(--htc-muted); --mdc-icon-size: clamp(35px, 12.2cqw, 53px); flex: 0 0 auto; }
-  .current .num { font-size: clamp(44px, 17.5cqw, 68px); font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
-  .current .unit { align-self: flex-start; margin-top: 4px; font-size: clamp(20px, 7.7cqw, 30px); font-weight: 400; line-height: 1; }
+  .current .thermo { color: var(--htc-muted); --mdc-icon-size: ${U(13.4)}; flex: 0 0 auto; }
+  .current .num { font-size: ${U(17.5)}; font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
+  .current .unit { align-self: flex-start; margin-top: ${U(1.2)}; font-size: ${U(7.7)}; font-weight: 400; line-height: 1; }
 
-  .targets { display: flex; align-items: stretch; gap: 2cqw; }
-  .target { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 24cqw; }
+  .targets { display: flex; align-items: stretch; gap: ${U(2)}; }
+  .target { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: ${U(24)}; }
   .arrow {
-    box-sizing: border-box; width: 20cqw; height: 18cqw; max-width: 84px; max-height: 72px; min-width: 52px; min-height: 48px;
-    padding: 0; border: none; border-radius: 14px; background: none;
+    box-sizing: border-box; width: ${U(20)}; height: ${U(18.4)};
+    padding: 0; border: none; border-radius: ${U(5.4)}; background: none;
     color: var(--primary-text-color); cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    --mdc-icon-size: clamp(40px, 15cqw, 60px);
+    --mdc-icon-size: ${U(15.3)};
     transition: background .15s, transform .1s;
   }
   .arrow:hover { background: var(--htc-tile); }
   .arrow:active { transform: scale(0.92); }
   .arrow:disabled { opacity: .35; cursor: default; background: none; transform: none; }
   .target .val {
-    display: flex; align-items: flex-start; gap: 2px; padding: 1.5cqw 0;
-    font-size: clamp(22px, 9.5cqw, 34px); font-weight: 500; line-height: 1.2; white-space: nowrap;
+    display: flex; align-items: flex-start; gap: 2px; padding: ${U(1.5)} 0;
+    font-size: ${U(9.5)}; font-weight: 500; line-height: 1.2; white-space: nowrap;
   }
   .target .val small { font-size: 0.62em; font-weight: 400; color: var(--htc-muted); margin-top: 0.05em; }
 
@@ -403,9 +421,15 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._cache = {};
     this._res = {};
     this._menu = null;
+    this._u = null;
   }
 
   connectedCallback() {
+    if (!this._ro && typeof ResizeObserver !== "undefined") {
+      this._ro = new ResizeObserver(() => this._scheduleFit());
+    }
+    if (this._ro) this._ro.observe(this);
+    this._scheduleFit();
     this._docClick = (e) => {
       if (this._menu && !e.composedPath().includes(this)) this._closeMenu();
     };
@@ -414,6 +438,8 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
 
   disconnectedCallback() {
     document.removeEventListener("click", this._docClick);
+    if (this._ro) this._ro.disconnect();
+    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(this._fitRaf);
     clearTimeout(this._sendTimer);
     clearTimeout(this._clearTimer);
   }
@@ -454,7 +480,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
 
   // Vue « sections » : la carte remplit exactement les lignes × colonnes choisies
   getGridOptions() {
-    return { columns: 6, rows: 10, min_columns: 3, min_rows: 8 };
+    return { columns: 6, rows: 10, min_columns: 3, min_rows: 6 };
   }
 
   get _t() {
@@ -502,6 +528,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       error: r.querySelector(".error"),
       content: r.querySelector(".content"),
       card: r.querySelector("ha-card"),
+      header: r.querySelector(".header"),
       badge: r.querySelector(".badge"),
       badgeIcon: r.querySelector(".badge ha-icon"),
       badgeState: r.querySelector(".badge ha-state-icon"),
@@ -522,7 +549,42 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     };
     r.addEventListener("click", (e) => this._onClick(e));
     this._cache = {};
+    if (this._u) this._els.content.style.setProperty("--u", `${this._u}px`);
     this._built = true;
+    this._scheduleFit();
+  }
+
+  // --- adaptation à la mise en page ---------------------------------------
+  // Même principe que la carte Bosch BTH-RA : à largeur égale, les éléments gardent exactement
+  // les mêmes dimensions ; la scène du poêle prend toute la hauteur restante. Si la hauteur
+  // donnée par la grille est trop faible, tout est réduit proportionnellement.
+
+  _scheduleFit() {
+    if (typeof requestAnimationFrame !== "function") return;
+    cancelAnimationFrame(this._fitRaf);
+    this._fitRaf = requestAnimationFrame(() => this._fit());
+  }
+
+  _fit() {
+    const E = this._els;
+    if (!this._built || !E || E.content.hidden) return;
+    const w = E.card.clientWidth;
+    const h = E.card.clientHeight;
+    if (!w || !h) return;
+    if (!E.header.offsetHeight || !E.main.offsetHeight) return;
+    const cur = this._u || w / REF_W;
+    const cs = getComputedStyle(E.content);
+    const mt = (el) => parseFloat(getComputedStyle(el).marginTop) || 0;
+    const fixed =
+      parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
+      E.header.offsetHeight + E.tiles.offsetHeight + E.main.offsetHeight +
+      mt(E.tiles) + mt(E.stage) + mt(E.main);
+    const u = Math.round(Math.min(w / REF_W, h / (fixed / cur + MIN_STAGE)) * 100) / 100;
+    if (!isFinite(u) || u <= 0) return;
+    if (this._u === null || Math.abs(u - this._u) > 0.01) {
+      this._u = u;
+      E.content.style.setProperty("--u", `${u}px`);
+    }
   }
 
   // --- interactions ----------------------------------------------------
@@ -843,6 +905,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._renderTargets(s);
     this._renderAlarm(phase);
     this._renderMenu();
+    this._scheduleFit();
   }
 
   _renderTiles(s, f1, f2, unavailable) {
