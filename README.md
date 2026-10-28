@@ -117,6 +117,7 @@ Dans une vue **Sections**, la carte suit le réglage **Mise en page** : elle occ
 - Ajouter des lignes agrandit le poêle, qui occupe toute la hauteur disponible.
 - Élargir la carte ne change pas sa hauteur.
 - Si la hauteur est trop faible pour tout afficher, l'ensemble est réduit proportionnellement.
+- Quand la carte fait **deux fois la hauteur** d'une carte Bosch de même largeur (ex. 8 lignes contre 4), le nom, l'interrupteur, les températures et les chevrons ont **exactement la même taille** que sur la carte Bosch, même si celle-ci est réduite par sa hauteur. Au-delà (ex. 10 lignes), la carte s'agrandit jusqu'à la largeur de référence.
 
 Dans les autres vues, la carte garde sa hauteur naturelle.
 

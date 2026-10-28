@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.3.0";
+const CARD_VERSION = "1.3.1";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -187,6 +187,11 @@ const REF_W = 112.4;
 const PAD_X = 4.4; // marge intérieure horizontale (unités)
 const PAD_Y = 4.2; // marge intérieure verticale (unités)
 const MIN_STAGE = 30; // hauteur minimale de la scène du poêle (unités)
+// Hauteur naturelle de la carte Bosch BTH-RA, en unités (marges + en-tête + température/consigne).
+// Dans une vue « sections », la carte MCZ prend l'échelle qu'aurait une carte Bosch deux fois moins haute :
+// à largeur égale et à hauteur double, le nom, l'interrupteur, les températures et les chevrons
+// ont alors exactement la taille de ceux de la carte Bosch.
+const BOSCH_H = 87.6;
 const STAGE_H = 70; // hauteur « naturelle » de la scène quand la carte n'a pas de hauteur imposée
 const U = (k) => `calc(var(--u, ${(100 / REF_W).toFixed(4)}cqw) * ${k})`;
 
@@ -565,6 +570,18 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._fitRaf = requestAnimationFrame(() => this._fit());
   }
 
+  // Vue « sections » : la grille impose la hauteur de la carte (variables --row-height / --row-gap)
+  _inSections() {
+    if (parseFloat(getComputedStyle(this).getPropertyValue("--row-height"))) return true;
+    let n = this;
+    for (let i = 0; n && i < 15; i++) {
+      const name = n.localName || "";
+      if (name.includes("sections-view") || name.includes("grid-section")) return true;
+      n = n.parentElement || (n.getRootNode && n.getRootNode().host) || null;
+    }
+    return false;
+  }
+
   _fit() {
     const E = this._els;
     if (!this._built || !E || E.content.hidden) return;
@@ -579,7 +596,12 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) +
       E.header.offsetHeight + E.tiles.offsetHeight + E.main.offsetHeight +
       mt(E.tiles) + mt(E.stage) + mt(E.main);
-    const u = Math.round(Math.min(w / REF_W, h / (fixed / cur + MIN_STAGE)) * 100) / 100;
+    let u = Math.min(w / REF_W, h / (fixed / cur + MIN_STAGE));
+    if (this._inSections()) {
+      const gap = parseFloat(getComputedStyle(this).getPropertyValue("--row-gap")) || 8;
+      u = Math.min(u, ((h + gap) / 2 - gap) / BOSCH_H);
+    }
+    u = Math.round(u * 100) / 100;
     if (!isFinite(u) || u <= 0) return;
     if (this._u === null || Math.abs(u - this._u) > 0.01) {
       this._u = u;
