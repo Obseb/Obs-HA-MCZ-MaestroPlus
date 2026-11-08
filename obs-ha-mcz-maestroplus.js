@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.3.1";
+const CARD_VERSION = "1.4.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -37,9 +37,9 @@ const PRESET_ICONS = {
 
 const I18N = {
   en: {
-    preset: "Preset",
-    fan1: "Fan 1",
-    fan2: "Fan 2",
+    preset: "Mode",
+    fan1: "Upper fan",
+    fan2: "Lower fan",
     power: "Stove on / off",
     notfound: "Entity not found",
     speed: "Speed",
@@ -50,13 +50,11 @@ const I18N = {
     unavailable: "n/a",
     chips: {
       exhaust: "Exhaust temperature",
-      water: "Water temperature",
       maintenance: "Next maintenance",
       power: "Manual power",
       eco: "Start & Stop (Eco)",
-      timer: "Timer (schedule)",
     },
-    short: { eco: "Eco", timer: "Timer", power: "Power" },
+    short: { eco: "Eco", power: "Power" },
     phases: {
       heating: "Heating",
       preheating: "Igniting",
@@ -69,9 +67,9 @@ const I18N = {
     presets: { manual: "Manual", auto: "Auto", dynamic: "Dynamic", overnight: "Night", comfort: "Comfort", turbo: "Turbo", power: "Power", silent: "Silent" },
   },
   fr: {
-    preset: "Préréglage",
-    fan1: "Ventilo 1",
-    fan2: "Ventilo 2",
+    preset: "Mode",
+    fan1: "Ventilo Haut",
+    fan2: "Ventilo Bas",
     power: "Poêle marche / arrêt",
     notfound: "Entité introuvable",
     speed: "Vitesse",
@@ -82,13 +80,11 @@ const I18N = {
     unavailable: "indispo.",
     chips: {
       exhaust: "Température des fumées",
-      water: "Température de l'eau",
       maintenance: "Prochain entretien",
       power: "Puissance manuelle",
       eco: "Start & Stop (Éco)",
-      timer: "Chrono (programmation)",
     },
-    short: { eco: "Éco", timer: "Chrono", power: "Puiss." },
+    short: { eco: "Éco", power: "Puiss." },
     phases: {
       heating: "Chauffe en cours",
       preheating: "Allumage en cours",
@@ -110,14 +106,24 @@ const AUX = {
   fan2:         { domain: "fan",           suffix: ["fan_2"],                names: [/\bfan 2$/i, /ventilat\w* 2$/i] },
   power:        { domain: "select",        suffix: ["manual_power"],         names: [/manual power$/i, /puissance manuelle$/i] },
   eco:          { domain: "switch",        suffix: ["start_stop"],           names: [/start ?\/ ?stop$/i] },
-  timer:        { domain: "switch",        suffix: ["timer"],                names: [/timer$/i, /chrono/i] },
   exhaust_temp: { domain: "sensor",        suffix: ["exhaust_temperature"],  names: [/exhaust temperature$/i, /fum[ée]es$/i] },
-  water_temp:   { domain: "sensor",        suffix: ["water_temperature"],    names: [/water temperature$/i, /temp[ée]rature de l'eau$/i] },
+  stove_state:  { domain: "sensor",        suffix: ["current_state"],        names: [/current state$/i, /[ée]tat actuel$/i] },
   maintenance:  { domain: "sensor",        suffix: ["next_maintenance"],     names: [/next maintenance$/i, /prochain entretien$/i] },
   alarm:        { domain: "binary_sensor", suffix: ["alarm"],                names: [/\balarm$/i, /alarme$/i] },
   alarm_code:   { domain: "sensor",        suffix: ["last_alarm_code"],      names: [/last alarm code$/i] },
   alarm_reset:  { domain: "button",        suffix: ["alarm_reset"],          names: [/alarm reset$/i, /reset allarme$/i] },
 };
+
+// Étapes de l'allumage (sensor « Current State » de l'intégration) → avancement en %
+const IGNITION = { cleaning: 0, loading: 16, start1: 33, start2: 50, stabilization: 66, stabilisation: 66, anticondensation: 83 };
+const ignitionPct = (state) => {
+  if (state == null) return null;
+  const k = String(state).toLowerCase().replace(/[^a-z0-9]/g, "");
+  return Object.prototype.hasOwnProperty.call(IGNITION, k) ? IGNITION[k] : null;
+};
+
+// Durée pendant laquelle un ordre envoyé reste affiché en attendant le retour d'état du poêle
+const OPT_MS = 60000;
 
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -344,6 +350,7 @@ const STYLE = `
   .chip.on { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .chip.on ha-icon { color: var(--htc-accent); }
   .chip.warn { color: #e6b450; }
+  .exh { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 2; }
   .chip.warn ha-icon { color: #e6b450; }
   .chip:disabled { opacity: .4; cursor: default; }
 
@@ -392,26 +399,28 @@ const STYLE = `
 
   /* --- Menu déroulant (préréglage, ventilos, puissance) ---------------- */
   .menu {
-    position: absolute; z-index: 10; box-sizing: border-box; min-width: 46cqw; max-width: 94cqw; padding: 8px;
+    position: absolute; z-index: 10; box-sizing: border-box; min-width: 60cqw; max-width: 94cqw; padding: 10px;
     background: var(--htc-menu-bg, var(--ha-card-background, var(--card-background-color, #222)));
     border: 1px solid var(--divider-color, rgba(255,255,255,.12));
-    border-radius: 18px; box-shadow: 0 10px 28px rgba(0, 0, 0, .5);
+    border-radius: 23px; box-shadow: 0 13px 36px rgba(0, 0, 0, .5);
   }
-  .menu .mt { font-size: 12px; letter-spacing: .04em; color: var(--htc-muted); padding: 2px 8px 8px; }
+  .menu .mt { font-size: 16px; letter-spacing: .04em; color: var(--htc-muted); padding: 3px 10px 10px; }
   .menu .mi {
-    display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 10px 12px;
-    border: none; border-radius: 12px; background: none; color: var(--primary-text-color);
-    font: inherit; font-size: 15px; text-align: left; cursor: pointer; --mdc-icon-size: 22px;
+    display: flex; align-items: center; gap: 13px; width: 100%; box-sizing: border-box; padding: 13px 16px;
+    border: none; border-radius: 16px; background: none; color: var(--primary-text-color);
+    font: inherit; font-size: 20px; text-align: left; cursor: pointer; --mdc-icon-size: 29px;
   }
   .menu .mi:hover { background: var(--htc-tile); }
   .menu .mi.active { background: var(--htc-accent-bg); color: var(--htc-accent); }
-  .menu .speeds { display: grid; grid-template-columns: repeat(var(--n, 5), 1fr); gap: 6px; margin: 0 0 6px; }
-  .menu .sp {
-    height: 44px; border: none; border-radius: 12px; background: var(--htc-tile); color: var(--primary-text-color);
-    font: inherit; font-size: 16px; font-weight: 500; cursor: pointer;
+  /* Curseur horizontal de vitesse */
+  .menu .sl { padding: 6px 12px 12px; }
+  .menu .slider {
+    display: block; width: 100%; height: 36px; margin: 0; cursor: pointer;
+    accent-color: var(--htc-accent); background: none;
   }
-  .menu .sp:hover { filter: brightness(1.25); }
-  .menu .sp.active { background: var(--htc-accent); color: var(--htc-accent-bg); }
+  .menu .ticks { display: flex; justify-content: space-between; padding: 0 6px; font-size: 18px; color: var(--htc-muted); }
+  .menu .ticks span { width: 1em; text-align: center; }
+  .menu .ticks span.active { color: var(--htc-accent); font-weight: 600; }
 
   .error { padding: 16px; color: var(--error-color, #db4437); }
   [hidden] { display: none !important; }
@@ -422,6 +431,8 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._pending = {};
+    this._optMode = null;
+    this._optFan = {};
     this._built = false;
     this._cache = {};
     this._res = {};
@@ -447,6 +458,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(this._fitRaf);
     clearTimeout(this._sendTimer);
     clearTimeout(this._clearTimer);
+    clearTimeout(this._optTimer);
   }
 
   static getConfigElement() {
@@ -517,6 +529,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
             <div class="alarm" hidden></div>
             <div class="chips l"></div>
             <div class="chips r"></div>
+            <div class="chip exh" hidden></div>
           </div>
           <div class="main">
             <div class="current">
@@ -546,6 +559,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       alarm: r.querySelector(".alarm"),
       chipsL: r.querySelector(".chips.l"),
       chipsR: r.querySelector(".chips.r"),
+      exh: r.querySelector(".exh"),
       main: r.querySelector(".main"),
       num: r.querySelector(".num"),
       unit: r.querySelector(".unit"),
@@ -553,6 +567,19 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       menu: r.querySelector(".menu"),
     };
     r.addEventListener("click", (e) => this._onClick(e));
+    // Curseur de vitesse : l'aperçu suit le doigt, l'ordre part au relâchement
+    this._els.menu.addEventListener("input", (e) => {
+      const sl = e.target.closest && e.target.closest("input.slider");
+      if (!sl) return;
+      this._sliding = true;
+      this._els.menu.querySelectorAll(".ticks span").forEach((x) => x.classList.toggle("active", x.dataset.i === sl.value));
+    });
+    this._els.menu.addEventListener("change", (e) => {
+      const sl = e.target.closest && e.target.closest("input.slider");
+      if (!sl) return;
+      this._sliding = false;
+      this._pick(sl.dataset.menu, "level", sl.value, true);
+    });
     this._cache = {};
     if (this._u) this._els.content.style.setProperty("--u", `${this._u}px`);
     this._built = true;
@@ -613,7 +640,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
 
   _onClick(e) {
     const el = e.target.closest("[data-act]");
-    const keepOpen = el && (el.dataset.act === "open" || el.closest(".menu"));
+    const keepOpen = (e.target.closest && e.target.closest(".menu")) || (el && el.dataset.act === "open");
     if (!keepOpen) this._closeMenu();
     if (!el || el.disabled) return;
     const act = el.dataset.act;
@@ -669,7 +696,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._renderMenu();
   }
 
-  _pick(menu, kind, v) {
+  _pick(menu, kind, v, keepOpen) {
     const h = this._hass;
     if (menu === "preset") {
       h.callService("climate", "set_preset_mode", { entity_id: this._config.entity, preset_mode: v });
@@ -680,6 +707,8 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       const id = this._ent(menu);
       const info = this._fanInfo(id);
       if (!id || !info) return;
+      this._optFan[id] = { kind, v: kind === "level" ? Number(v) : v, until: Date.now() + OPT_MS };
+      this._armOpt();
       if (kind === "level") {
         // même formule que Home Assistant : ranged_value_to_percentage((1, n), niveau)
         h.callService("fan", "set_percentage", { entity_id: id, percentage: Math.floor((Number(v) * 100) / info.n) });
@@ -689,7 +718,14 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
         h.callService("fan", "turn_off", { entity_id: id });
       }
     }
-    this._closeMenu();
+    this._update();
+    if (!keepOpen) this._closeMenu();
+  }
+
+  // Un ordre envoyé s'affiche tout de suite et reste affiché jusqu'au retour d'état (60 s maximum)
+  _armOpt() {
+    clearTimeout(this._optTimer);
+    this._optTimer = setTimeout(() => this._update(), OPT_MS + 500);
   }
 
   // Interrupteur : Off ⇄ mode de chauffe (`heat` par défaut, option `heat_mode`)
@@ -705,7 +741,10 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       target = "off";
     }
     if (!target) return;
+    this._optMode = { target, until: Date.now() + OPT_MS };
+    this._armOpt();
     this._hass.callService("climate", "set_hvac_mode", { entity_id: this._config.entity, hvac_mode: target });
+    this._update();
   }
 
   _step(dir) {
@@ -821,7 +860,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     const n = step ? Math.max(1, Math.round(100 / step)) : 0;
     const pct = a.percentage;
     const level = pct != null && n ? Math.ceil((pct * n) / 100) : null;
-    return {
+    const info = {
       id,
       n,
       level,
@@ -830,6 +869,21 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       unavailable: s.state === "unavailable",
       on: s.state === "on",
     };
+    const o = this._optFan[id];
+    if (o) {
+      const done =
+        o.kind === "level" ? info.level === o.v :
+        o.kind === "preset" ? info.preset === o.v :
+        !info.on;
+      if (done || Date.now() > o.until) {
+        delete this._optFan[id];
+      } else {
+        info.on = o.kind !== "off";
+        info.level = o.kind === "level" ? o.v : null;
+        info.preset = o.kind === "preset" ? o.v : null;
+      }
+    }
+    return info;
   }
 
   _presetLabel(p) {
@@ -872,10 +926,22 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
 
     const a = s.attributes;
     const unit = this._hass.config.unit_system.temperature;
-    const phase = this._phase(s);
-    const P = PHASES[phase];
+    let phase = this._phase(s);
     const unavailable = phase === "unavailable";
-    const on = !unavailable && s.state !== "off";
+    let on = !unavailable && s.state !== "off";
+
+    // Ordre marche / arrêt en attente : l'interrupteur et l'état suivent tout de suite
+    const om = this._optMode;
+    if (om) {
+      const reached = om.target === "off" ? s.state === "off" : s.state !== "off";
+      if (reached || Date.now() > om.until || unavailable) {
+        this._optMode = null;
+      } else {
+        on = om.target !== "off";
+        phase = on ? "preheating" : "cooling";
+      }
+    }
+    const P = PHASES[phase];
 
     for (const k of Object.keys(this._pending)) {
       if (a[k] === this._pending[k]) delete this._pending[k];
@@ -883,7 +949,12 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
 
     // En-tête
     this._setText(E.title, "title", this._config.name || a.friendly_name || this._config.entity);
-    const status = this._config.show_status ? t.phases[phase] : "";
+    let status = this._config.show_status ? t.phases[phase] : "";
+    if (status && phase === "preheating") {
+      const st = this._st(this._ent("stove_state"));
+      const pct = st && !isBad(st) ? ignitionPct(st.state) : null;
+      if (pct != null) status += ` · ${pct} %`;
+    }
     E.status.hidden = !status;
     this._setText(E.status, "status", status);
 
@@ -922,15 +993,15 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     const f1 = this._fanInfo(this._ent("fan1"));
     const f2 = this._fanInfo(this._ent("fan2"));
 
-    this._renderTiles(s, f1, f2, unavailable);
+    this._renderTiles(s, f1, f2, unavailable, phase === "off");
     this._renderStage(phase, f1, f2);
-    this._renderTargets(s);
+    this._renderTargets(s, on);
     this._renderAlarm(phase);
     this._renderMenu();
     this._scheduleFit();
   }
 
-  _renderTiles(s, f1, f2, unavailable) {
+  _renderTiles(s, f1, f2, unavailable, stoveOff) {
     const t = this._t;
     const a = s.attributes;
     const tiles = [];
@@ -953,7 +1024,12 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       let value = "--";
       let active = false;
       let spin = "";
-      if (f) {
+      if (stoveOff) {
+        // Poêle à l'arrêt : ventilateurs arrêtés
+        value = esc(t.off);
+        f = f || {};
+        f = { ...f, off: true };
+      } else if (f) {
         if (f.unavailable) {
           value = esc(t.unavailable);
         } else if (f.level != null) {
@@ -965,13 +1041,16 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
         }
         active = f.on && !f.unavailable;
         if (active) {
-          const ratio = f.level != null && f.n ? f.level / f.n : 0.6;
-          spin = `style="--spin:${(2.6 - ratio * 2.1).toFixed(2)}s"`;
+          // plus le niveau est élevé, plus l'hélice tourne vite (1 → 4 s par tour, 5 → 0,9 s)
+          let period = 1.8;
+          if (f.level != null) period = 4 / Math.pow(f.level, 0.95);
+          else if (f.preset && /silen|quiet/i.test(f.preset)) period = 4.5;
+          spin = `style="--spin:${period.toFixed(2)}s"`;
         }
       }
       tiles.push(`
-        <button class="tile ${active ? "active" : ""}" data-act="open" data-menu="${key}" data-anchor="${key}" ${!f || f.unavailable ? "disabled" : ""}>
-          <ha-icon class="${active ? "spin" : ""}" ${spin} icon="${f && f.unavailable ? "mdi:fan-off" : "mdi:fan"}"></ha-icon>
+        <button class="tile ${active ? "active" : ""}" data-act="open" data-menu="${key}" data-anchor="${key}" ${!f || f.unavailable || f.off ? "disabled" : ""}>
+          <ha-icon class="${active ? "spin" : ""}" ${spin} icon="${f && (f.unavailable || f.off) ? "mdi:fan-off" : "mdi:fan"}"></ha-icon>
           <div class="tv">${value}</div>
           <div class="tl">${esc(label)}</div>
         </button>`);
@@ -990,6 +1069,17 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       : STOVE_SVG;
     this._setHtml(E.art, "art", art);
 
+    // Température des fumées : centrée sous l'illustration, indépendante des pastilles
+    const exh = this._st(this._ent("exhaust_temp"));
+    if (exh) {
+      const u = exh.attributes.unit_of_measurement || "°C";
+      E.exh.hidden = false;
+      E.exh.title = this._t.chips.exhaust;
+      this._setHtml(E.exh, "exh", `<ha-icon icon="mdi:thermometer-lines"></ha-icon>${isBad(exh) ? "--" : esc(fmtInt(exh.state))} ${esc(u)}`);
+    } else {
+      E.exh.hidden = true;
+    }
+
     if (!this._config.show_chips) {
       E.chipsL.hidden = true;
       E.chipsR.hidden = true;
@@ -1001,16 +1091,6 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     const left = [];
     const right = [];
 
-    const exh = this._st(this._ent("exhaust_temp"));
-    if (exh) {
-      const u = exh.attributes.unit_of_measurement || "°C";
-      left.push(`<div class="chip" title="${esc(t.chips.exhaust)}"><ha-icon icon="mdi:thermometer-lines"></ha-icon>${isBad(exh) ? "--" : esc(fmtInt(exh.state))} ${esc(u)}</div>`);
-    }
-    const wat = this._st(this._ent("water_temp"));
-    if (wat && !isBad(wat)) {
-      const u = wat.attributes.unit_of_measurement || "°C";
-      left.push(`<div class="chip" title="${esc(t.chips.water)}"><ha-icon icon="mdi:water-thermometer"></ha-icon>${esc(fmtInt(wat.state))} ${esc(u)}</div>`);
-    }
     const mnt = this._st(this._ent("maintenance"));
     if (mnt) {
       const v = Number(mnt.state);
@@ -1022,14 +1102,10 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     if (pot) {
       right.push(`<button class="chip" data-act="open" data-menu="power" data-anchor="power" title="${esc(t.chips.power)}" ${isBad(pot) ? "disabled" : ""}><ha-icon icon="mdi:fire"></ha-icon>${esc(t.short.power)} ${isBad(pot) ? "--" : esc(pot.state)}</button>`);
     }
-    [
-      ["eco", "mdi:leaf"],
-      ["timer", "mdi:timer-outline"],
-    ].forEach(([key, ic]) => {
-      const sw = this._st(this._ent(key));
-      if (!sw) return;
-      right.push(`<button class="chip ${sw.state === "on" ? "on" : ""}" data-act="aux" data-key="${key}" title="${esc(t.chips[key])}" ${isBad(sw) ? "disabled" : ""}><ha-icon icon="${ic}"></ha-icon>${esc(t.short[key])}</button>`);
-    });
+    const eco = this._st(this._ent("eco"));
+    if (eco) {
+      right.push(`<button class="chip ${eco.state === "on" ? "on" : ""}" data-act="aux" data-key="eco" title="${esc(t.chips.eco)}" ${isBad(eco) ? "disabled" : ""}><ha-icon icon="mdi:leaf"></ha-icon>${esc(t.short.eco)}</button>`);
+    }
 
     this._setHtml(E.chipsL, "chipsL", left.join(""));
     this._setHtml(E.chipsR, "chipsR", right.join(""));
@@ -1056,9 +1132,9 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     );
   }
 
-  _renderTargets(s) {
+  _renderTargets(s, on) {
     const unit = this._hass.config.unit_system.temperature;
-    const off = s.state === "off" || s.state === "unavailable" || s.state === "unknown";
+    const off = s.state === "unavailable" || s.state === "unknown" || (on === undefined ? s.state === "off" : !on);
     const v = off ? null : this._val("temperature");
     const dis = off || v == null ? "disabled" : "";
     const value = v == null ? "--" : `${fmtTemp(v)}<small>${esc(unit)}</small>`;
@@ -1103,11 +1179,9 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       if (!f) return "";
       let html = `<div class="mt">${esc((m === "fan1" ? t.fan1 : t.fan2).toUpperCase())}</div>`;
       if (f.n > 1) {
-        const speeds = [];
-        for (let i = 1; i <= f.n; i++) {
-          speeds.push(`<button class="sp ${f.level === i ? "active" : ""}" data-act="pick" data-menu="${m}" data-kind="level" data-v="${i}">${i}</button>`);
-        }
-        html += `<div class="speeds" style="--n:${Math.min(f.n, 6)}">${speeds.join("")}</div>`;
+        const ticks = [];
+        for (let i = 1; i <= f.n; i++) ticks.push(`<span data-i="${i}" class="${f.level === i ? "active" : ""}">${i}</span>`);
+        html += `<div class="sl"><input class="slider" type="range" min="1" max="${f.n}" step="1" value="${f.level || 1}" data-menu="${m}" aria-label="${esc(t.speed)}"><div class="ticks">${ticks.join("")}</div></div>`;
       }
       html += f.presets
         .map(
@@ -1122,7 +1196,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
   }
 
   _renderMenu() {
-    if (!this._built) return;
+    if (!this._built || this._sliding) return;
     const E = this._els;
     const anchor = this._menu ? this.shadowRoot.querySelector(`[data-anchor="${this._menu}"]`) : null;
     const html = anchor ? this._menuHtml() : "";
@@ -1156,9 +1230,8 @@ const ENTITY_FIELDS = [
   { name: "fan2", selector: { entity: { domain: "fan" } } },
   { name: "power", selector: { entity: { domain: "select" } } },
   { name: "eco", selector: { entity: { domain: "switch" } } },
-  { name: "timer", selector: { entity: { domain: "switch" } } },
   { name: "exhaust_temp", selector: { entity: { domain: "sensor" } } },
-  { name: "water_temp", selector: { entity: { domain: "sensor" } } },
+  { name: "stove_state", selector: { entity: { domain: "sensor" } } },
   { name: "maintenance", selector: { entity: { domain: "sensor" } } },
   { name: "alarm", selector: { entity: { domain: "binary_sensor" } } },
   { name: "alarm_code", selector: { entity: { domain: "sensor" } } },
@@ -1191,13 +1264,12 @@ const EDITOR_LABELS = {
   step: "Pas consigne de température",
   show_status: "Afficher l'état sous le nom",
   show_chips: "Afficher les pastilles autour du poêle",
-  fan1: "Ventilateur 1 (fan)",
-  fan2: "Ventilateur 2 (fan)",
+  fan1: "Ventilo Haut (fan)",
+  fan2: "Ventilo Bas (fan)",
   power: "Puissance manuelle (select)",
   eco: "Start & Stop / Éco (switch)",
-  timer: "Chrono (switch)",
   exhaust_temp: "Température des fumées (sensor)",
-  water_temp: "Température de l'eau (sensor)",
+  stove_state: "État actuel du poêle / étapes d'allumage (sensor Current State)",
   maintenance: "Prochain entretien (sensor, heures)",
   alarm: "Alarme (binary_sensor)",
   alarm_code: "Dernier code d'alarme (sensor)",

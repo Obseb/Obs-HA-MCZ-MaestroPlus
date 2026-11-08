@@ -14,10 +14,11 @@ De haut en bas :
 
 1. **En-tête** : badge rond (icône de l'entité, cliquable) + nom du poêle + état en cours (*Chauffe en cours*, *Allumage en cours*, *En veille*, *Extinction en cours*, *Éteint*, *Alarme*). À droite, l'**interrupteur Off ⇄ Chauffe** (`off` ⇄ `heat`).
 2. **3 cases alignées** :
-   - **Préréglage** : `manual`, `auto`, `overnight`, `comfort`, `turbo` (selon le modèle). Un appui ouvre la liste.
-   - **Ventilo 1** et **Ventilo 2** : niveau actuel (ex. `3/5`) ou mode (Auto…). Un appui ouvre les niveaux, les modes et « Arrêt ». L'icône tourne d'autant plus vite que le niveau est élevé.
+   - **Mode** : `manual`, `auto`, `overnight`, `comfort`, `turbo` (selon le modèle). Un appui ouvre la liste.
+   - **Ventilo Haut** et **Ventilo Bas** (ventilateurs 1 et 2) : niveau actuel (ex. `3/5`) ou mode (Auto, Silencieux…). Un appui ouvre un **curseur horizontal** de vitesse (1 à 5) et les boutons Auto / Silencieux / Arrêt. L'hélice tourne d'autant plus vite que le niveau est élevé ; poêle éteint, les cases affichent l'hélice arrêtée et « Arrêt ».
 3. **Grande illustration de poêle** (style icônes Home Assistant, inspirée du MCZ Mood) animée selon l'état :
-   grande flamme fine en chauffe, petite flamme pendant l'allumage, braises en veille, vitre vide à l'arrêt, air chaud qui monte quand un ventilateur tourne.
+   grande flamme fine en chauffe, petite flamme pendant l'allumage (avec l'avancement en % sous le nom : 0 % nettoyage, 16 % chargement, 33 % start-1, 50 % start-2, 66 % stabilisation, 83 % anti-condensation), braises en veille, vitre vide à l'arrêt, air chaud qui monte quand un ventilateur tourne.
+   La **température des fumées** s'affiche centrée sous l'illustration (même si les pastilles sont masquées).
 4. **Température actuelle** (grande, colorée selon l'état) et **consigne** avec les chevrons ▲ / ▼ (envoi différé de 0,9 s, comme la carte Bosch).
 
 ### Fonctions ajoutées (autour du poêle)
@@ -26,12 +27,10 @@ Ces pastilles sont **détectées automatiquement** et n'apparaissent que si l'en
 
 | Pastille | Entité de l'intégration | Action |
 | --- | --- | --- |
-| 🌡 Température des fumées | `sensor.<poele>_exhaust_temperature` | lecture |
-| 💧 Température de l'eau (modèles hydro) | `sensor.<poele>_water_temperature` | lecture |
+| 📶 Étapes d'allumage (hors pastille) | `sensor.<poele>_current_state` | lecture |
 | 🔧 Heures avant entretien (jaune ≤ 20 h) | `sensor.<poele>_next_maintenance` | lecture |
 | 🔥 Puissance manuelle | `select.<poele>_manual_power` | ouvre la liste des niveaux |
 | 🍃 Éco (Start & Stop) | `switch.<poele>_start_stop` | bascule |
-| ⏱ Chrono | `switch.<poele>_timer` | bascule |
 | ⚠ Bandeau d'alarme + code + bouton **Réinitialiser** | `binary_sensor.<poele>_alarm`, `sensor.<poele>_last_alarm_code`, `button.<poele>_alarm_reset` | réinitialise l'alarme |
 
 `<poele>` est le nom de votre entité `climate` (par exemple `climate.stufa` → `sensor.stufa_exhaust_temperature`). Si vos entités ont un autre nom, la carte cherche aussi parmi les entités du **même appareil** d'après leur nom affiché, et vous pouvez toujours les indiquer à la main (voir ci-dessous).
@@ -73,11 +72,15 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | `show_chips` | boolean | `true` | Affiche les pastilles autour du poêle |
 | `fan1`, `fan2` | entity | auto | Entités `fan` des ventilateurs 1 et 2 |
 | `power` | entity | auto | Entité `select` de la puissance manuelle |
-| `eco`, `timer` | entity | auto | Entités `switch` Start & Stop et Chrono |
-| `exhaust_temp`, `water_temp`, `maintenance` | entity | auto | Entités `sensor` |
+| `eco` | entity | auto | Entité `switch` Start & Stop |
+| `exhaust_temp`, `maintenance`, `stove_state` | entity | auto | Entités `sensor` (fumées, entretien, étape d'allumage) |
 | `alarm`, `alarm_code`, `alarm_reset` | entity | auto | Alarme (`binary_sensor`, `sensor`, `button`) |
 
-Pour masquer une pastille ou une case, mettez son option à `false` (ex. `fan2: false`, `timer: false`).
+Pour masquer une pastille ou une case, mettez son option à `false` (ex. `fan2: false`, `eco: false`).
+
+### Retour immédiat des commandes
+
+Le poêle met 30 à 40 secondes à confirmer un changement. La carte affiche donc **tout de suite** l'état demandé (interrupteur, statut, niveau ou mode des ventilateurs) et le garde jusqu'au retour d'état réel, 60 secondes au maximum.
 
 ### Action du badge
 
@@ -131,10 +134,8 @@ fan1: fan.stufa_fan_1
 fan2: fan.stufa_fan_2
 power: select.stufa_manual_power
 eco: switch.stufa_start_stop
-timer: switch.stufa_timer
 exhaust_temp: sensor.stufa_exhaust_temperature
 maintenance: sensor.stufa_next_maintenance
-water_temp: false
 ```
 
 ### Personnalisation du thème
