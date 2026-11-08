@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.5.0";
+const CARD_VERSION = "1.5.1";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -366,7 +366,7 @@ const STYLE = `
   .chip.on { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .chip.on ha-icon { color: var(--htc-accent); }
   .chip.warn { color: #e6b450; }
-  .exh { position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%); z-index: 2; }
+  .exh { position: absolute; left: 50%; top: 85.6%; transform: translate(-50%, -50%); z-index: 2; }
   .chip.warn ha-icon { color: #e6b450; }
   .chip:disabled { opacity: .4; cursor: default; }
 
