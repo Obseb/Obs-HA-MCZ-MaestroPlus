@@ -64,6 +64,7 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | `entity` | string | **requis** | Entité `climate.xxx` de l'intégration Maestro MCZ |
 | `name` | string | nom de l'entité | Titre de la carte |
 | `icon` | string | icône de l'entité | Icône du badge (ex. `mdi:fire`) |
+| `color` | string ou [r, g, b] | saumon `#e8958a` | Couleur de surbrillance en chauffe (voir ci-dessous) |
 | `tap_action` | action | `more-info` | Action au clic sur le badge (voir ci-dessous) |
 | `image` | string | dessin intégré | URL d'une image à afficher à la place du dessin du poêle (ex. `/local/mood.png`) |
 | `heat_mode` | string | `heat` | Mode activé par l'interrupteur |
@@ -77,6 +78,16 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | `alarm`, `alarm_code`, `alarm_reset` | entity | auto | Alarme (`binary_sensor`, `sensor`, `button`) |
 
 Pour masquer une pastille ou une case, mettez son option à `false` (ex. `fan2: false`, `eco: false`).
+
+### Couleur de surbrillance
+
+`color` remplace le saumon utilisé **en chauffe** : badge, interrupteur, température actuelle, cases actives et flamme. Le fond sombre associé est calculé automatiquement. L'**allumage reste orange** et l'**extinction bleue**. Dans l'éditeur visuel, un sélecteur de couleur est proposé ; en YAML, tout format CSS est accepté :
+
+```yaml
+color: [79, 209, 197]      # ou "#4fd1c5", rgb(79, 209, 197), var(--primary-color)
+```
+
+Supprimez la ligne `color` pour revenir au saumon.
 
 ### Retour immédiat des commandes
 

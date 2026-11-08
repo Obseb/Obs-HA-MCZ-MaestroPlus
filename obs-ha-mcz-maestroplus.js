@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.5.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -124,6 +124,22 @@ const ignitionPct = (state) => {
 
 // Durée pendant laquelle un ordre envoyé reste affiché en attendant le retour d'état du poêle
 const OPT_MS = 60000;
+
+// Couleur personnalisée (comme la carte Bosch BTH-RA) : tableau [r, g, b] (sélecteur de l'éditeur)
+// ou chaîne CSS (#e8958a, rgb(...), hsl(...), nom, var(--primary-color)). null si invalide.
+const resolveColor = (v) => {
+  let c = null;
+  if (Array.isArray(v) && v.length >= 3 && v.slice(0, 3).every((n) => isFinite(n))) {
+    c = `rgb(${v.slice(0, 3).map((n) => Math.round(Number(n))).join(", ")})`;
+  } else if (typeof v === "string" && v.trim()) {
+    c = v.trim();
+  }
+  if (!c) return null;
+  try {
+    if (typeof CSS !== "undefined" && CSS.supports && !CSS.supports("color", c)) return null;
+  } catch (e) { /* ignore */ }
+  return c;
+};
 
 const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -350,7 +366,7 @@ const STYLE = `
   .chip.on { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .chip.on ha-icon { color: var(--htc-accent); }
   .chip.warn { color: #e6b450; }
-  .exh { position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); z-index: 2; }
+  .exh { position: absolute; left: 50%; bottom: 13%; transform: translateX(-50%); z-index: 2; }
   .chip.warn ha-icon { color: #e6b450; }
   .chip:disabled { opacity: .4; cursor: default; }
 
@@ -959,8 +975,16 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     this._setText(E.status, "status", status);
 
     // Couleurs selon la phase
-    E.card.style.setProperty("--htc-accent", P.color);
-    E.card.style.setProperty("--htc-accent-bg", P.bg);
+    // `color` ne remplace que la couleur de chauffe : l'allumage reste orange, l'extinction bleue
+    let [accent, accentBg] = [P.color, P.bg];
+    const custom = phase === "heating" ? resolveColor(this._config.color) : null;
+    if (custom) {
+      accent = custom;
+      const mix = `color-mix(in srgb, ${custom} 32%, black)`;
+      if (typeof CSS === "undefined" || !CSS.supports || CSS.supports("color", mix)) accentBg = mix;
+    }
+    E.card.style.setProperty("--htc-accent", accent);
+    E.card.style.setProperty("--htc-accent-bg", accentBg);
 
     // Badge + interrupteur
     // Icône du badge : celle de l'entité (comme dans Home Assistant), sauf si `icon` est défini
@@ -1242,6 +1266,7 @@ const EDITOR_SCHEMA = [
   { name: "entity", required: true, selector: { entity: { domain: "climate" } } },
   { name: "name", selector: { text: {} } },
   { name: "icon", selector: { icon: {} } },
+  { name: "color", selector: { color_rgb: {} } },
   { name: "tap_action", selector: { ui_action: { actions: ["none", "more-info", "navigate", "url", "perform-action"], default_action: "more-info" } } },
   { name: "image", selector: { text: {} } },
   { name: "step", selector: { number: { min: 0.1, max: 5, step: 0.1, mode: "box" } } },
@@ -1259,6 +1284,7 @@ const EDITOR_LABELS = {
   entity: "Entité du poêle (climate)",
   name: "Nom (optionnel)",
   icon: "Icône du badge (par défaut : icône de l'entité)",
+  color: "Couleur de surbrillance en chauffe (optionnel, défaut : saumon)",
   tap_action: "Action au clic sur le badge",
   image: "Image personnalisée à la place du dessin (URL, optionnel)",
   step: "Pas consigne de température",
