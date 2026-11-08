@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.5.1";
+const CARD_VERSION = "1.5.2";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -1099,7 +1099,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       const u = exh.attributes.unit_of_measurement || "°C";
       E.exh.hidden = false;
       E.exh.title = this._t.chips.exhaust;
-      this._setHtml(E.exh, "exh", `<ha-icon icon="mdi:thermometer-lines"></ha-icon>${isBad(exh) ? "--" : esc(fmtInt(exh.state))} ${esc(u)}`);
+      this._setHtml(E.exh, "exh", `${isBad(exh) ? "--" : esc(fmtInt(exh.state))} ${esc(u)}`);
     } else {
       E.exh.hidden = true;
     }
