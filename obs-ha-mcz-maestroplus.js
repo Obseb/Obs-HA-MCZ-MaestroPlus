@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.7.0";
+const CARD_VERSION = "1.7.1";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -317,7 +317,9 @@ const STYLE = `
   /* La scène absorbe toute la hauteur disponible : elle grandit avec le nombre de lignes choisi
      dans « Mise en page » ; la largeur ne change pas la hauteur. */
   .stage { position: relative; margin-top: ${U(1.5)}; flex: 1 1 ${U(STAGE_H)}; min-height: 0; }
-  .art { position: absolute; inset: 0; display: flex; justify-content: center; }
+  /* L'illustration déborde vers le bas (sans rien déplacer d'autre) : le poêle est plus grand et se rapproche de la température */
+  .stage { --grow: ${U(13)}; }
+  .art { position: absolute; top: 0; left: 0; right: 0; bottom: calc(var(--grow) * -1); display: flex; justify-content: center; pointer-events: none; }
   .art svg, .art img { width: 100%; height: 100%; object-fit: contain; }
 
   .stove { color: var(--htc-stove, var(--primary-text-color)); overflow: visible; }
@@ -376,7 +378,7 @@ const STYLE = `
   .chip.on { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .chip.on ha-icon { color: var(--htc-accent); }
   .chip.warn { color: #e6b450; }
-  .exh { position: absolute; left: 50%; top: 85.6%; transform: translate(-50%, -50%); z-index: 2; }
+  .exh { position: absolute; left: 50%; top: calc((100% + var(--grow)) * .856); transform: translate(-50%, -50%); z-index: 2; }
   .chip.warn ha-icon { color: #e6b450; }
   .chip:disabled { opacity: .4; cursor: default; }
 
