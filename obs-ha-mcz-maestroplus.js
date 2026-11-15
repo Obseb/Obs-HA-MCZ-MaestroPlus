@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.6.0";
+const CARD_VERSION = "1.7.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -206,8 +206,8 @@ const STOVE_SVG = `
 // REF_W est volontairement celle de la carte Bosch (112,4) : à largeur égale, le nom, le badge,
 // l'interrupteur, la température et les chevrons ont exactement les mêmes dimensions.
 const REF_W = 112.4;
-const PAD_X = 4.4; // marge intérieure horizontale (unités)
-const PAD_Y = 4.2; // marge intérieure verticale (unités)
+const PAD_X = 6.2; // marge intérieure horizontale (unités)
+const PAD_Y = 7.0; // marge intérieure verticale (unités)
 const MIN_STAGE = 30; // hauteur minimale de la scène du poêle (unités)
 // Hauteur naturelle de la carte Bosch BTH-RA, en unités (marges + en-tête + température/consigne).
 // Dans une vue « sections », la carte MCZ prend l'échelle qu'aurait une carte Bosch deux fois moins haute :
@@ -307,7 +307,7 @@ const STYLE = `
   .tile .tv { font-size: ${U(4.6)}; font-weight: 500; line-height: 1.15; white-space: nowrap; }
   .tile .tv small { font-size: .72em; font-weight: 400; opacity: .7; }
   .tile .tl { font-size: ${U(3.1)}; letter-spacing: .03em; color: var(--htc-muted); }
-  .tile.active { background: var(--htc-accent-bg); color: var(--htc-accent); }
+  .tile.active { color: var(--htc-accent); } /* le fond reste celui de l'état « arrêt » : seuls texte et icône changent */
   .tile.active .tl { color: var(--htc-accent); opacity: .8; }
   .tile:disabled { opacity: .4; cursor: default; filter: none; }
   .tile ha-icon.spin { animation: obs-spin var(--spin, 2s) linear infinite; }
@@ -400,7 +400,7 @@ const STYLE = `
     display: flex; align-items: center; gap: ${U(3)}; min-width: 0; white-space: nowrap;
     color: var(--htc-accent); transition: color .3s;
   }
-  .current .thermo { color: var(--htc-muted); --mdc-icon-size: ${U(13.4)}; flex: 0 0 auto; }
+  .current .thermo { color: inherit; --mdc-icon-size: ${U(13.4)}; flex: 0 0 auto; }
   .current .num { font-size: ${U(17.5)}; font-weight: 400; line-height: 1; letter-spacing: -0.02em; }
   .current .unit { align-self: flex-start; margin-top: ${U(1.2)}; font-size: ${U(7.7)}; font-weight: 400; line-height: 1; }
 
