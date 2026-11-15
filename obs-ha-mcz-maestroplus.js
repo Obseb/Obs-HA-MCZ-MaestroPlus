@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.7.1";
+const CARD_VERSION = "1.7.2";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -378,7 +378,9 @@ const STYLE = `
   .chip.on { background: var(--htc-accent-bg); color: var(--htc-accent); }
   .chip.on ha-icon { color: var(--htc-accent); }
   .chip.warn { color: #e6b450; }
-  .exh { position: absolute; left: 50%; top: calc((100% + var(--grow)) * .856); transform: translate(-50%, -50%); z-index: 2; }
+  .exh { position: absolute; left: 50%; top: calc((100% + var(--grow)) * .856); transform: translate(-50%, -50%); z-index: 2;
+    /* +15 % par rapport aux pastilles */
+    font-size: ${U(4.14)}; padding: ${U(1.5)} ${U(2.9)}; border-radius: ${U(4.14)}; max-width: ${U(32)}; }
   .chip.warn ha-icon { color: #e6b450; }
   .chip:disabled { opacity: .4; cursor: default; }
 
