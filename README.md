@@ -28,7 +28,6 @@ Ces pastilles sont **détectées automatiquement** et n'apparaissent que si l'en
 | Pastille | Entité de l'intégration | Action |
 | --- | --- | --- |
 | 📶 Étapes d'allumage (hors pastille) | `sensor.<poele>_current_state` | lecture |
-| 🔧 Heures avant entretien (jaune ≤ 20 h) | `sensor.<poele>_next_maintenance` | lecture |
 | 🔥 Puissance manuelle | `select.<poele>_manual_power` | ouvre la liste des niveaux |
 | 🍃 Éco (Start & Stop) | `switch.<poele>_start_stop` | bascule |
 | ⚠ Bandeau d'alarme + code + bouton **Réinitialiser** | `binary_sensor.<poele>_alarm`, `sensor.<poele>_last_alarm_code`, `button.<poele>_alarm_reset` | réinitialise l'alarme |
@@ -65,6 +64,7 @@ Tout le reste est détecté automatiquement. Un éditeur visuel est aussi dispon
 | `name` | string | nom de l'entité | Titre de la carte |
 | `icon` | string | icône de l'entité | Icône du badge (ex. `mdi:fire`) |
 | `color` | string ou [r, g, b] | saumon `#e8958a` | Couleur de surbrillance en chauffe (voir ci-dessous) |
+| `maintenance_threshold` | number | — | Seuil d'alerte entretien, en heures (voir ci-dessous) |
 | `tap_action` | action | `more-info` | Action au clic sur le badge (voir ci-dessous) |
 | `image` | string | dessin intégré | URL d'une image à afficher à la place du dessin du poêle (ex. `/local/mood.png`) |
 | `heat_mode` | string | `heat` | Mode activé par l'interrupteur |
@@ -88,6 +88,14 @@ color: [79, 209, 197]      # ou "#4fd1c5", rgb(79, 209, 197), var(--primary-colo
 ```
 
 Supprimez la ligne `color` pour revenir au saumon.
+
+### Alerte entretien
+
+Renseignez `maintenance_threshold` (en heures). Quand ce seuil devient **supérieur** au compteur « prochain entretien » (`sensor.<poele>_next_maintenance`), l'icône de cette entité s'affiche **en rouge, clignotante, à gauche de l'interrupteur** (même position et même taille que l'icône de batterie faible de la carte Bosch). Survolez-la pour lire le nombre d'heures restantes. Sans seuil, rien n'est affiché ; le compteur n'apparaît plus parmi les pastilles.
+
+```yaml
+maintenance_threshold: 50   # alerte quand il reste moins de 50 h avant l'entretien
+```
 
 ### Retour immédiat des commandes
 

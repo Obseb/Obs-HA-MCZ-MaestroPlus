@@ -9,7 +9,7 @@
  *  - température actuelle + consigne avec chevrons ▲ / ▼
  */
 
-const CARD_VERSION = "1.5.2";
+const CARD_VERSION = "1.6.0";
 const CARD_TAG = "obs-ha-mcz-maestroplus";
 const EDITOR_TAG = `${CARD_TAG}-editor`;
 
@@ -256,6 +256,16 @@ const STYLE = `
   .badge.noact { cursor: default; filter: none; transform: none; }
   .badge:focus-visible { outline: 2px solid var(--htc-accent); outline-offset: 3px; }
   .badge ha-state-icon, .badge ha-icon { display: flex; }
+  /* Entretien à prévoir : à gauche de l'interrupteur, hors flux (même position et même taille que l'icône
+     de batterie faible de la carte Thermostat BTH-RA) */
+  .maint {
+    position: absolute; right: calc(100% + ${U(3)}); top: 50%; transform: translateY(-50%);
+    --mdc-icon-size: ${U(8.6)}; display: flex; color: var(--error-color, #f44336);
+    animation: htc-blink 1.2s ease-in-out infinite;
+  }
+  .maint ha-state-icon, .maint ha-icon { display: flex; }
+  @keyframes htc-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.15; } }
+  @media (prefers-reduced-motion: reduce) { .maint { animation: none; } }
   .txt { min-width: 0; }
   .title {
     font-size: ${U(6.7)}; font-weight: 500; line-height: 1.2;
@@ -263,7 +273,7 @@ const STYLE = `
   }
   .status { font-size: ${U(4.6)}; font-weight: 500; color: var(--htc-muted); margin-top: 2px; }
 
-  .right { display: flex; align-items: center; gap: ${U(3)}; flex: 0 0 auto; }
+  .right { position: relative; display: flex; align-items: center; gap: ${U(3)}; flex: 0 0 auto; }
   /* Interrupteur Off / Chauffe : sa couleur suit l'état (--htc-accent) */
   .switch {
     --sw-h: ${U(9.2)};
@@ -536,6 +546,7 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
               </div>
             </div>
             <div class="right">
+              <div class="maint" role="img" hidden><ha-state-icon hidden></ha-state-icon><ha-icon icon="mdi:wrench-clock"></ha-icon></div>
               <button class="switch" role="switch" aria-checked="false" data-act="toggle"><span class="knob"></span></button>
             </div>
           </div>
@@ -569,6 +580,9 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
       title: r.querySelector(".title"),
       status: r.querySelector(".status"),
       sw: r.querySelector(".switch"),
+      maint: r.querySelector(".maint"),
+      maintState: r.querySelector(".maint ha-state-icon"),
+      maintIcon: r.querySelector(".maint ha-icon"),
       tiles: r.querySelector(".tiles"),
       stage: r.querySelector(".stage"),
       art: r.querySelector(".art"),
@@ -1010,6 +1024,28 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     E.sw.setAttribute("aria-label", t.power);
     E.sw.disabled = unavailable;
 
+    // Entretien à prévoir : seuil (heures) supérieur au compteur « prochain entretien »
+    const mnt = this._st(this._ent("maintenance"));
+    const thr = Number(this._config.maintenance_threshold);
+    const due = !!mnt && !isBad(mnt) && this._config.maintenance_threshold !== "" && this._config.maintenance_threshold != null &&
+      isFinite(thr) && isFinite(Number(mnt.state)) && thr > Number(mnt.state);
+    E.maint.hidden = !due;
+    if (due) {
+      const label = `${t.chips.maintenance} : ${fmtInt(Number(mnt.state))} h`;
+      E.maint.setAttribute("title", label);
+      E.maint.setAttribute("aria-label", label);
+      if (customElements.get("ha-state-icon")) {
+        E.maintState.hidden = false;
+        E.maintIcon.hidden = true;
+        E.maintState.hass = this._hass;
+        E.maintState.stateObj = mnt;
+      } else {
+        E.maintState.hidden = true;
+        E.maintIcon.hidden = false;
+        E.maintIcon.setAttribute("icon", mnt.attributes.icon || "mdi:wrench-clock");
+      }
+    }
+
     // Température actuelle
     this._setText(E.num, "cur", fmtTemp(a.current_temperature));
     this._setText(E.unit, "unit", unit);
@@ -1114,13 +1150,6 @@ class ObsHaMczMaestroPlusCard extends HTMLElement {
     const t = this._t;
     const left = [];
     const right = [];
-
-    const mnt = this._st(this._ent("maintenance"));
-    if (mnt) {
-      const v = Number(mnt.state);
-      const warn = !isBad(mnt) && v <= 20;
-      left.push(`<div class="chip ${warn ? "warn" : ""}" title="${esc(t.chips.maintenance)}"><ha-icon icon="mdi:wrench-clock"></ha-icon>${isBad(mnt) ? "--" : esc(fmtInt(v))} h</div>`);
-    }
 
     const pot = this._st(this._ent("power"));
     if (pot) {
@@ -1257,6 +1286,7 @@ const ENTITY_FIELDS = [
   { name: "exhaust_temp", selector: { entity: { domain: "sensor" } } },
   { name: "stove_state", selector: { entity: { domain: "sensor" } } },
   { name: "maintenance", selector: { entity: { domain: "sensor" } } },
+  { name: "maintenance_threshold", selector: { number: { min: 0, max: 5000, step: 1, mode: "box", unit_of_measurement: "h" } } },
   { name: "alarm", selector: { entity: { domain: "binary_sensor" } } },
   { name: "alarm_code", selector: { entity: { domain: "sensor" } } },
   { name: "alarm_reset", selector: { entity: { domain: "button" } } },
@@ -1297,6 +1327,7 @@ const EDITOR_LABELS = {
   exhaust_temp: "Température des fumées (sensor)",
   stove_state: "État actuel du poêle / étapes d'allumage (sensor Current State)",
   maintenance: "Prochain entretien (sensor, heures)",
+  maintenance_threshold: "Alerte entretien : seuil en heures (l'icône rouge s'affiche quand le compteur est inférieur)",
   alarm: "Alarme (binary_sensor)",
   alarm_code: "Dernier code d'alarme (sensor)",
   alarm_reset: "Réinitialisation d'alarme (button)",
